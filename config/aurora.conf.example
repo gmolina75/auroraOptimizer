@@ -1,0 +1,132 @@
+# ============================================
+# Aurora Optimizer - Configuración General
+# ============================================
+
+# Nivel de log: DEBUG, INFO, WARN, ERROR
+LOG_LEVEL="INFO"
+
+# Idioma: es, en
+LANGUAGE="es"
+
+# Directorios adicionales a limpiar (separados por espacio)
+CUSTOM_CLEAN_DIRS="/tmp /var/tmp"
+
+# Umbral de espacio en disco para alerta (porcentaje)
+DISK_ALERT_THRESHOLD=85
+
+# ¿Defragmentar HDD automáticamente? (true/false)
+DEFRAG_HDD=true
+
+# ¿Limpiar memoria/cachés? (true/false)
+CLEAN_MEMORY=true
+
+# ¿Limpiar archivos temporales? (true/false)
+CLEAN_TEMP=true
+
+# Edad mínima de archivos temporales a eliminar (días)
+TEMP_FILE_AGE_DAYS=7
+
+# ¿Enviar notificaciones del sistema? (true/false)
+NOTIFICATIONS=true
+
+# Máximo de archivos de log a conservar
+MAX_LOG_FILES=10
+
+# ============================================
+# ALERTAS POR UMBRALES
+# ============================================
+
+ALERT_THRESHOLDS=true
+ALERT_CPU_THRESHOLD=90
+ALERT_MEMORY_THRESHOLD=90
+ALERT_DISK_THRESHOLD=85
+ALERT_SWAP_THRESHOLD=80
+
+# ============================================
+# MODO SILENCIOSO
+# ============================================
+
+# Horas silenciosas (no enviar notificaciones)
+# Formato: HH:MM-HH:MM (24 horas)
+QUIET_HOURS="22:00-07:00"
+
+# ============================================
+# BACKUP AUTOMÁTICO
+# ============================================
+
+BACKUP_ENABLED=true
+BACKUP_DIR="./backups"
+BACKUP_RETENTION_DAYS=30
+BACKUP_CONFIG=true
+BACKUP_LOGS=false
+
+# ============================================
+# NOTIFICACIONES POR CORREO ELECTRÓNICO
+# ============================================
+
+EMAIL_ENABLED=false
+EMAIL_SMTP_SERVER="smtp.gmail.com"
+EMAIL_SMTP_PORT=587
+EMAIL_USERNAME="YOUR_EMAIL@gmail.com"
+EMAIL_PASSWORD="YOUR_APP_PASSWORD"
+EMAIL_FROM="Aurora Optimizer <YOUR_EMAIL@gmail.com>"
+
+# Múltiples destinatarios (separados por coma)
+EMAIL_TO="destinatario@ejemplo.com"
+
+# ============================================
+# NOTIFICACIONES POR TELEGRAM
+# ============================================
+
+TELEGRAM_ENABLED=false
+TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN"
+
+# Múltiples chats (separados por coma)
+TELEGRAM_CHAT_ID="YOUR_CHAT_ID"
+
+# ============================================
+# NOTIFICACIONES POR SLACK
+# ============================================
+
+SLACK_ENABLED=false
+SLACK_WEBHOOK_URL="YOUR_SLACK_WEBHOOK_URL_HERE"
+SLACK_CHANNEL="#aurora-optimizer"
+
+# ============================================
+# NOTIFICACIONES POR DISCORD
+# ============================================
+
+DISCORD_ENABLED=false
+DISCORD_WEBHOOK_URL="YOUR_DISCORD_WEBHOOK_URL_HERE"
+
+# ============================================
+# NOTIFICACIONES POR PUSHOVER
+# ============================================
+
+PUSHOVER_ENABLED=false
+PUSHOVER_APP_TOKEN="your-app-token"
+PUSHOVER_USER_KEY="your-user-key"
+
+# ============================================
+# ESTADÍSTICAS
+# ============================================
+
+STATS_ENABLED=true
+STATS_FILE="./logs/stats.json"
+STATS_RETENTION_DAYS=90
+
+# ============================================
+# PLUGINS
+# ============================================
+
+PLUGINS_ENABLED=true
+PLUGINS_DIR="./plugins"
+
+# ============================================
+# API REST
+# ============================================
+
+API_ENABLED=true
+API_HOST="0.0.0.0"
+API_PORT=5000
+API_DEBUG=false

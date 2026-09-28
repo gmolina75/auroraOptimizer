@@ -2,7 +2,8 @@
 logs/*.log
 logs/*.txt
 
-# Configuración local
+# Configuración local (contiene credenciales)
+config/aurora.conf
 config/local.conf
 
 # Archivos temporales
