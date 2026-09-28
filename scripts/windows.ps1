@@ -161,6 +161,10 @@ function Clear-OldLogs {
 # EJECUCIÓN PRINCIPAL
 # ============================================
 
+# stats: generación de estadísticas
+# backup: creación de backups
+# alert: verificación de alertas por umbrales
+
 function Main {
     Write-Log "INFO" "=========================================="
     Write-Log "INFO" "Aurora Optimizer - Iniciando optimización"
@@ -196,6 +200,60 @@ function Main {
 
     # 5. Limpiar logs antiguos
     Clear-OldLogs
+
+    # Generar estadísticas
+    $statsEnabled = $true
+    if ($statsEnabled) {
+        Write-Log "INFO" "Generando estadísticas..."
+        $statsFile = Join-Path $LogDir "stats.json"
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $mem = Get-CimInstance Win32_OperatingSystem
+        $disk = Get-Volume | Where-Object { $_.DriveLetter } | Select-Object -First 1
+        $stats = @{
+            timestamp = $timestamp
+            memory = @{
+                total = $mem.TotalVisibleMemorySize
+                used = ($mem.TotalVisibleMemorySize - $mem.FreePhysicalMemory)
+            }
+            disk = @{
+                total = $disk.Size
+                used = ($disk.Size - $disk.SizeRemaining)
+            }
+        } | ConvertTo-Json -Compress
+        Add-Content -Path $statsFile -Value $stats
+        Write-Log "INFO" "Estadísticas guardadas"
+    }
+
+    # Crear backup
+    $backupEnabled = $true
+    if ($backupEnabled) {
+        Write-Log "INFO" "Creando backup..."
+        $backupDir = Join-Path $PSScriptRoot "..\backups"
+        New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+        $backupFile = Join-Path $backupDir "backup-$(Get-Date -Format 'yyyyMMdd-HHmmss').zip"
+        Compress-Archive -Path "$PSScriptRoot\..\config" -DestinationPath $backupFile -Force -ErrorAction SilentlyContinue
+        Write-Log "INFO" "Backup creado: $backupFile"
+    }
+
+    # Verificar alertas por umbrales
+    $alertThresholds = $true
+    if ($alertThresholds) {
+        Write-Log "INFO" "Verificando alertas por umbrales..."
+        $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+        if ($cpu -gt 90) {
+            Write-Log "WARN" "ALERTA: Uso de CPU alto: $cpu%"
+        }
+        $mem = Get-CimInstance Win32_OperatingSystem
+        $memUsage = [math]::Round(($mem.TotalVisibleMemorySize - $mem.FreePhysicalMemory) / $mem.TotalVisibleMemorySize * 100, 1)
+        if ($memUsage -gt 90) {
+            Write-Log "WARN" "ALERTA: Uso de memoria alto: $memUsage%"
+        }
+        $disk = Get-Volume | Where-Object { $_.DriveLetter } | Select-Object -First 1
+        $diskUsage = [math]::Round(($disk.Size - $disk.SizeRemaining) / $disk.Size * 100, 1)
+        if ($diskUsage -gt 85) {
+            Write-Log "WARN" "ALERTA: Espacio en disco bajo: $diskUsage%"
+        }
+    }
 
     Write-Log "INFO" "=========================================="
     Write-Log "INFO" "Optimización completada exitosamente"

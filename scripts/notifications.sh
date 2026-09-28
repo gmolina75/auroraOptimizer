@@ -157,6 +157,103 @@ send_telegram() {
 }
 
 # ============================================
+# NOTIFICACIÓN POR SLACK
+# ============================================
+send_slack() {
+    local message="$1"
+
+    if [[ "${SLACK_ENABLED:-false}" != "true" ]]; then
+        log "INFO" "Notificaciones por Slack deshabilitadas"
+        return 0
+    fi
+
+    log "INFO" "Enviando notificación por Slack..."
+
+    if ! command -v curl &> /dev/null; then
+        log "WARN" "curl no está disponible para enviar mensajes de Slack"
+        return 1
+    fi
+
+    local payload="{\"channel\":\"${SLACK_CHANNEL}\",\"text\":\"${message}\"}"
+
+    local response=$(curl -s -X POST -H 'Content-type: application/json' \
+        --data "$payload" "${SLACK_WEBHOOK_URL}" 2>/dev/null)
+
+    if [[ "$response" == "ok" ]]; then
+        log "INFO" "✓ Mensaje de Slack enviado exitosamente"
+        return 0
+    else
+        log "WARN" "No se pudo enviar el mensaje de Slack: $response"
+        return 1
+    fi
+}
+
+# ============================================
+# NOTIFICACIÓN POR DISCORD
+# ============================================
+send_discord() {
+    local message="$1"
+
+    if [[ "${DISCORD_ENABLED:-false}" != "true" ]]; then
+        log "INFO" "Notificaciones por Discord deshabilitadas"
+        return 0
+    fi
+
+    log "INFO" "Enviando notificación por Discord..."
+
+    if ! command -v curl &> /dev/null; then
+        log "WARN" "curl no está disponible para enviar mensajes de Discord"
+        return 1
+    fi
+
+    local payload="{\"content\":\"${message}\"}"
+
+    local response=$(curl -s -X POST -H 'Content-type: application/json' \
+        --data "$payload" "${DISCORD_WEBHOOK_URL}" 2>/dev/null)
+
+    if [[ -z "$response" ]] || [[ "$response" != *"message_id"* ]]; then
+        log "INFO" "✓ Mensaje de Discord enviado exitosamente"
+        return 0
+    else
+        log "WARN" "No se pudo enviar el mensaje de Discord: $response"
+        return 1
+    fi
+}
+
+# ============================================
+# NOTIFICACIÓN POR PUSHOVER
+# ============================================
+send_pushover() {
+    local message="$1"
+
+    if [[ "${PUSHOVER_ENABLED:-false}" != "true" ]]; then
+        log "INFO" "Notificaciones por Pushover deshabilitadas"
+        return 0
+    fi
+
+    log "INFO" "Enviando notificación por Pushover..."
+
+    if ! command -v curl &> /dev/null; then
+        log "WARN" "curl no está disponible para enviar mensajes de Pushover"
+        return 1
+    fi
+
+    local response=$(curl -s \
+        --form-string "token=${PUSHOVER_APP_TOKEN}" \
+        --form-string "user=${PUSHOVER_USER_KEY}" \
+        --form-string "message=${message}" \
+        "https://api.pushover.net/1/messages.json" 2>/dev/null)
+
+    if echo "$response" | grep -q '"status":1'; then
+        log "INFO" "✓ Mensaje de Pushover enviado exitosamente"
+        return 0
+    else
+        log "WARN" "No se pudo enviar el mensaje de Pushover: $response"
+        return 1
+    fi
+}
+
+# ============================================
 # NOTIFICACIÓN DE REINICIO
 # ============================================
 notify_reboot() {
@@ -197,6 +294,9 @@ Enviado por Aurora Optimizer"
     # Enviar notificaciones
     send_email "$email_subject" "$email_body"
     send_telegram "$telegram_message"
+    send_slack "$telegram_message"
+    send_discord "$telegram_message"
+    send_pushover "$telegram_message"
 
     log "INFO" "=========================================="
     log "INFO" "Notificaciones enviadas"
@@ -227,6 +327,9 @@ Enviado por Aurora Optimizer"
 
     send_email "$email_subject" "$email_body"
     send_telegram "$telegram_message"
+    send_slack "$telegram_message"
+    send_discord "$telegram_message"
+    send_pushover "$telegram_message"
 }
 
 # ============================================
@@ -255,6 +358,9 @@ Si recibes este mensaje, la configuración es correcta."
 
     send_email "$email_subject" "$email_body"
     send_telegram "$telegram_message"
+    send_slack "$telegram_message"
+    send_discord "$telegram_message"
+    send_pushover "$telegram_message"
 }
 
 # ============================================

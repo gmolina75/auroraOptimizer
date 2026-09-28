@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurora Optimizer - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p {
+            color: #8892b0;
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #00d4ff;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .stat-label {
+            color: #8892b0;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-fill.low { background: #00d4ff; }
+        .progress-fill.medium { background: #ffd700; }
+        .progress-fill.high { background: #ff4757; }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: opacity 0.3s ease;
+            margin-top: 16px;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .status-offline { background: #ff4757; }
+
+        .logs {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 16px;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            color: #8892b0;
+        }
+
+        .log-entry.success { color: #00ff88; }
+        .log-entry.error { color: #ff4757; }
+        .log-entry.warning { color: #ffd700; }
+
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            color: #8892b0;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Aurora Optimizer</h1>
+            <p>Dashboard de monitoreo del sistema</p>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h3>💻 Sistema</h3>
+                <div class="stat">
+                    <span class="stat-label">Estado</span>
+                    <span class="stat-value"><span class="status-indicator status-online"></span>Online</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Hostname</span>
+                    <span class="stat-value" id="hostname">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Sistema Operativo</span>
+                    <span class="stat-value" id="os">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Tiempo activo</span>
+                    <span class="stat-value" id="uptime">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🧠 Memoria</h3>
+                <div class="stat">
+                    <span class="stat-label">Uso</span>
+                    <span class="stat-value" id="memory-percent">-</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="memory-bar" style="width: 0%"></div>
+                </div>
+                <div class="stat" style="margin-top: 12px;">
+                    <span class="stat-label">Total</span>
+                    <span class="stat-value" id="memory-total">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Disponible</span>
+                    <span class="stat-value" id="memory-available">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>💾 Disco</h3>
+                <div class="stat">
+                    <span class="stat-label">Uso</span>
+                    <span class="stat-value" id="disk-percent">-</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="disk-bar" style="width: 0%"></div>
+                </div>
+                <div class="stat" style="margin-top: 12px;">
+                    <span class="stat-label">Total</span>
+                    <span class="stat-value" id="disk-total">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Libre</span>
+                    <span class="stat-value" id="disk-free">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⚡ CPU</h3>
+                <div class="stat">
+                    <span class="stat-label">Uso</span>
+                    <span class="stat-value" id="cpu-percent">-</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cpu-bar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Acciones</h3>
+                <button class="btn" onclick="runOptimization()">🔄 Ejecutar Optimización</button>
+                <button class="btn" onclick="refreshData()">🔄 Actualizar Datos</button>
+            </div>
+
+            <div class="card">
+                <h3>📜 Logs Recientes</h3>
+                <div class="logs" id="logs">
+                    <div class="log-entry">Cargando logs...</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Aurora Optimizer v1.0.0 | Dashboard de monitoreo</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                const data = await response.json();
+
+                document.getElementById('hostname').textContent = data.hostname;
+                document.getElementById('os').textContent = data.os;
+                document.getElementById('uptime').textContent = formatUptime(data.boot_time);
+
+                // Memoria
+                const memPercent = data.memory.percent;
+                document.getElementById('memory-percent').textContent = memPercent + '%';
+                document.getElementById('memory-bar').style.width = memPercent + '%';
+                document.getElementById('memory-bar').className = 'progress-fill ' + getProgressClass(memPercent);
+                document.getElementById('memory-total').textContent = formatBytes(data.memory.total);
+                document.getElementById('memory-available').textContent = formatBytes(data.memory.available);
+
+                // Disco
+                const diskPercent = data.disk.percent;
+                document.getElementById('disk-percent').textContent = diskPercent + '%';
+                document.getElementById('disk-bar').style.width = diskPercent + '%';
+                document.getElementById('disk-bar').className = 'progress-fill ' + getProgressClass(diskPercent);
+                document.getElementById('disk-total').textContent = formatBytes(data.disk.total);
+                document.getElementById('disk-free').textContent = formatBytes(data.disk.free);
+
+                // CPU
+                const cpuPercent = data.cpu_percent;
+                document.getElementById('cpu-percent').textContent = cpuPercent + '%';
+                document.getElementById('cpu-bar').style.width = cpuPercent + '%';
+                document.getElementById('cpu-bar').className = 'progress-fill ' + getProgressClass(cpuPercent);
+
+            } catch (error) {
+                console.error('Error fetching status:', error);
+            }
+        }
+
+        async function runOptimization() {
+            try {
+                const response = await fetch(`${API_URL}/optimize`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                addLog('Optimización ejecutada: ' + (data.success ? 'Éxito' : 'Fallo'), data.success ? 'success' : 'error');
+                fetchStatus();
+            } catch (error) {
+                addLog('Error ejecutando optimización: ' + error.message, 'error');
+            }
+        }
+
+        function refreshData() {
+            fetchStatus();
+            addLog('Datos actualizados', 'success');
+        }
+
+        function addLog(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.insertBefore(entry, logs.firstChild);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatUptime(bootTime) {
+            const boot = new Date(bootTime);
+            const now = new Date();
+            const diff = Math.floor((now - boot) / 1000);
+            const days = Math.floor(diff / 86400);
+            const hours = Math.floor((diff % 86400) / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            return `${days}d ${hours}h ${minutes}m`;
+        }
+
+        function getProgressClass(percent) {
+            if (percent < 50) return 'low';
+            if (percent < 80) return 'medium';
+            return 'high';
+        }
+
+        // Cargar datos al iniciar
+        fetchStatus();
+        setInterval(fetchStatus, 30000); // Actualizar cada 30 segundos
+    </script>
+</body>
+</html>

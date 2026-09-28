@@ -161,8 +161,92 @@ send_notification() {
 }
 
 # ============================================
+# GENERAR ESTADÍSTICAS
+# ============================================
+generate_stats() {
+    if [[ "${STATS_ENABLED:-true}" != "true" ]]; then
+        return 0
+    fi
+
+    log "INFO" "Generando estadísticas..."
+
+    local stats_file="${STATS_FILE:-$LOG_DIR/stats.json}"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local mem_total=$(free -m | awk '/^Mem:/{print $2}')
+    local mem_used=$(free -m | awk '/^Mem:/{print $3}')
+    local disk_total=$(df -m / | awk 'NR==2{print $2}')
+    local disk_used=$(df -m / | awk 'NR==2{print $3}')
+    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+
+    # Crear JSON de estadísticas
+    cat >> "$stats_file" << EOF
+{"timestamp":"$timestamp","memory":{"total":$mem_total,"used":$mem_used},"disk":{"total":$disk_total,"used":$disk_used},"cpu":"$cpu_usage"}
+EOF
+
+    log "INFO" "Estadísticas guardadas en $stats_file"
+}
+
+# ============================================
+# CREAR BACKUP
+# ============================================
+create_backup() {
+    if [[ "${BACKUP_ENABLED:-true}" != "true" ]]; then
+        return 0
+    fi
+
+    log "INFO" "Creando backup..."
+
+    local backup_dir="${BACKUP_DIR:-$PROJECT_DIR/backups}"
+    mkdir -p "$backup_dir"
+
+    local backup_file="$backup_dir/backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+
+    # Backup de configuración
+    if [[ "${BACKUP_CONFIG:-true}" == "true" ]]; then
+        tar -czf "$backup_file" -C "$PROJECT_DIR" config/ 2>/dev/null || true
+        log "INFO" "Backup creado: $backup_file"
+    fi
+
+    # Limpiar backups antiguos
+    find "$backup_dir" -name "backup-*.tar.gz" -mtime +${BACKUP_RETENTION_DAYS:-30} -delete 2>/dev/null || true
+}
+
+# ============================================
+# VERIFICAR ALERTAS POR UMBRALES
+# ============================================
+check_alerts() {
+    if [[ "${ALERT_THRESHOLDS:-true}" != "true" ]]; then
+        return 0
+    fi
+
+    log "INFO" "Verificando alertas por umbrales..."
+
+    # CPU
+    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+    if [[ "${cpu_usage%.*}" -gt "${ALERT_CPU_THRESHOLD:-90}" ]]; then
+        log "WARN" "⚠️  ALERTA: Uso de CPU alto: ${cpu_usage}%"
+    fi
+
+    # Memoria
+    local mem_usage=$(free | awk '/^Mem:/{printf "%.0f", $3/$2*100}')
+    if [[ "$mem_usage" -gt "${ALERT_MEMORY_THRESHOLD:-90}" ]]; then
+        log "WARN" "⚠️  ALERTA: Uso de memoria alto: ${mem_usage}%"
+    fi
+
+    # Disco
+    local disk_usage=$(df / | awk 'NR==2{print $5}' | tr -d '%')
+    if [[ "$disk_usage" -gt "${ALERT_DISK_THRESHOLD:-85}" ]]; then
+        log "WARN" "⚠️  ALERTA: Espacio en disco bajo: ${disk_usage}%"
+    fi
+}
+
+# ============================================
 # EJECUCIÓN PRINCIPAL
 # ============================================
+
+# stats: generación de estadísticas
+# backup: creación de backups
+# alert: verificación de alertas por umbrales
 
 main() {
     log "INFO" "=========================================="
@@ -205,6 +289,15 @@ main() {
 
     # 5. Limpiar logs antiguos
     clean_old_logs
+
+    # Generar estadísticas
+    generate_stats
+
+    # Crear backup
+    create_backup
+
+    # Verificar alertas por umbrales
+    check_alerts
 
     log "INFO" "=========================================="
     log "INFO" "Optimización completada exitosamente"

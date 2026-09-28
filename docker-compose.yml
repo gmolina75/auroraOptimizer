@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  aurora-optimizer:
+    build: .
+    container_name: aurora-optimizer
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - ./config:/opt/auroraOptimizer/config
+      - ./logs:/opt/auroraOptimizer/logs
+      - ./backups:/opt/auroraOptimizer/backups
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "5000:5000"
+    environment:
+      - TZ=America/Mexico_City
+    command: ./scripts/linux.sh
+
+  aurora-api:
+    build: .
+    container_name: aurora-api
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./config:/opt/auroraOptimizer/config
+      - ./logs:/opt/auroraOptimizer/logs
+    environment:
+      - TZ=America/Mexico_City
+    command: python3 api/server.py
