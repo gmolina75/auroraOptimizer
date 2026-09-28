@@ -82,7 +82,7 @@ send_email() {
         fi
     fi
 
-    # Método 1: Usando curl con SMTP
+    # Método 1: Usando curl con SMTP (STARTTLS en puerto 587)
     if command -v curl &> /dev/null; then
         local email_content="From: ${EMAIL_FROM}
 To: ${EMAIL_TO}
@@ -91,9 +91,10 @@ Content-Type: text/plain; charset=UTF-8
 
 ${body}"
 
-        curl -s --url "smtps://${EMAIL_SMTP_SERVER}:${EMAIL_SMTP_PORT}" \
+        # Usar smtp:// con --STARTTLS-smtp para puerto 587
+        curl -s --url "smtp://${EMAIL_SMTP_SERVER}:${EMAIL_SMTP_PORT}" \
             --ssl-reqd \
-            --mail-from "${EMAIL_FROM}" \
+            --mail-from "${EMAIL_USERNAME}" \
             --mail-rcpt "${EMAIL_TO}" \
             --user "${EMAIL_USERNAME}:${EMAIL_PASSWORD}" \
             --upload-file - <<< "$email_content" 2>/dev/null

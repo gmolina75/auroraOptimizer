@@ -64,10 +64,12 @@ clean_memory() {
 
     # Limpiar caché de página
     sync
-    echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || log "WARN" "No se pudo limpiar caché de página (requiere root)"
-
-    # Limpiar caché de inodos y entradas de directorio
-    echo 2 > /proc/sys/vm/drop_caches 2>/dev/null || true
+    if [[ $EUID -eq 0 ]]; then
+        echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+        echo 2 > /proc/sys/vm/drop_caches 2>/dev/null || true
+    else
+        log "WARN" "No se pudo limpiar caché de página (requiere root)"
+    fi
 
     # Mostrar memoria después
     local mem_after=$(free -m | awk '/^Mem:/{print $3}')
@@ -84,10 +86,12 @@ clean_temp_files() {
 
     for dir in "${dirs_to_clean[@]}"; do
         if [[ -d "$dir" ]]; then
-            local size_before=$(du -sm "$dir" 2>/dev/null | cut -f1 || echo "0")
+            local size_before=$(du -sm "$dir" 2>/dev/null | cut -f1)
+            size_before=${size_before:-0}
             find "$dir" -type f -mtime +${TEMP_FILE_AGE_DAYS:-7} -delete 2>/dev/null || true
             find "$dir" -type d -empty -delete 2>/dev/null || true
-            local size_after=$(du -sm "$dir" 2>/dev/null | cut -f1 || echo "0")
+            local size_after=$(du -sm "$dir" 2>/dev/null | cut -f1)
+            size_after=${size_after:-0}
             local freed=$((size_before - size_after))
             total_freed=$((total_freed + freed))
             log "INFO" "Limpiado $dir: ${freed}MB liberados"
@@ -176,12 +180,13 @@ generate_stats() {
     local mem_used=$(free -m | awk '/^Mem:/{print $3}')
     local disk_total=$(df -m / | awk 'NR==2{print $2}')
     local disk_used=$(df -m / | awk 'NR==2{print $3}')
-    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+    local cpu_usage=$(grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}')
+
+    # Crear directorio si no existe
+    mkdir -p "$(dirname "$stats_file")"
 
     # Crear JSON de estadísticas
-    cat >> "$stats_file" << EOF
-{"timestamp":"$timestamp","memory":{"total":$mem_total,"used":$mem_used},"disk":{"total":$disk_total,"used":$disk_used},"cpu":"$cpu_usage"}
-EOF
+    echo "{\"timestamp\":\"$timestamp\",\"memory\":{\"total\":$mem_total,\"used\":$mem_used},\"disk\":{\"total\":$disk_total,\"used\":$disk_used},\"cpu\":\"$cpu_usage\"}" >> "$stats_file"
 
     log "INFO" "Estadísticas guardadas en $stats_file"
 }
