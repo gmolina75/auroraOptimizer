@@ -1,0 +1,23 @@
+# Logs
+logs/*.log
+logs/*.txt
+
+# Configuración local
+config/local.conf
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
