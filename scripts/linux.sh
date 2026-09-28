@@ -171,6 +171,11 @@ main() {
     log "INFO" "Usuario: $(whoami)"
     log "INFO" "=========================================="
 
+    # Enviar notificación de reinicio
+    if [[ "${NOTIFICATIONS:-true}" == "true" ]]; then
+        bash "$SCRIPT_DIR/notifications.sh" --reboot 2>/dev/null || true
+    fi
+
     # Verificar si se ejecuta como root para ciertas operaciones
     if [[ $EUID -ne 0 ]]; then
         log "WARN" "Ejecutando como usuario normal - algunas operaciones requerirán root"

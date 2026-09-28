@@ -130,6 +130,11 @@ main() {
     log "INFO" "Sistema: $(sw_vers -productName) $(sw_vers -productVersion)"
     log "INFO" "=========================================="
 
+    # Enviar notificación de reinicio
+    if [[ "${NOTIFICATIONS:-true}" == "true" ]]; then
+        bash "$SCRIPT_DIR/notifications.sh" --reboot 2>/dev/null || true
+    fi
+
     # 1. Verificar espacio en disco
     check_disk_space
 

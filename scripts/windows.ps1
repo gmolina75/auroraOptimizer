@@ -168,6 +168,18 @@ function Main {
     Write-Log "INFO" "Usuario: $env:USERNAME"
     Write-Log "INFO" "=========================================="
 
+    # Enviar notificación de reinicio
+    if ($env:NOTIFICATIONS -eq "true") {
+        try {
+            $notificationScript = Join-Path $PSScriptRoot "notifications.sh"
+            if (Test-Path $notificationScript) {
+                bash $notificationScript --reboot 2>$null
+            }
+        } catch {
+            Write-Log "WARN" "No se pudo enviar notificación: $_"
+        }
+    }
+
     # 1. Verificar espacio en disco
     Test-DiskSpace
 
