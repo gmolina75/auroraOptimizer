@@ -36,25 +36,61 @@ get_system_info() {
     local hostname=$(hostname)
     local os_info=""
     local uptime_info=""
+    local mem_available=""
+    local disk_available=""
+    local ip_local=""
+    local ip_public=""
+    local connection_type=""
 
     case "$(uname -s)" in
         Linux*)
             os_info=$(lsb_release -d 2>/dev/null | cut -f2 || cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)
             uptime_info=$(uptime -p 2>/dev/null || uptime)
+            mem_available=$(free -m | awk '/^Mem:/{print $7}')
+            disk_available=$(df -m / | awk 'NR==2{print $4}')
+            ip_local=$(hostname -I | awk '{print $1}')
+            ip_public=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "N/A")
+            # Detectar tipo de conexión
+            if [[ -d /sys/class/net/wlan0 ]] && [[ "$(cat /sys/class/net/wlan0/operstate 2>/dev/null)" == "up" ]]; then
+                connection_type="WiFi"
+            elif [[ -d /sys/class/net/eth0 ]] && [[ "$(cat /sys/class/net/eth0/operstate 2>/dev/null)" == "up" ]]; then
+                connection_type="Red (Ethernet)"
+            else
+                connection_type="Desconocido"
+            fi
             ;;
         Darwin*)
             os_info="macOS $(sw_vers -productVersion)"
             uptime_info=$(uptime)
+            mem_available=$(vm_stat | awk '/Pages free/ {print int($3*4096/1024/1024)}')
+            disk_available=$(df -m / | awk 'NR==2{print $4}')
+            ip_local=$(ipconfig getifaddr en0 2>/dev/null || echo "N/A")
+            ip_public=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "N/A")
+            if [[ -n "$(ipconfig getifaddr en0 2>/dev/null)" ]]; then
+                connection_type="WiFi"
+            else
+                connection_type="Red (Ethernet)"
+            fi
             ;;
         CYGWIN*|MINGW*|MSYS*)
             os_info="Windows"
             uptime_info=$(uptime)
+            mem_available=$(wmic OS get FreePhysicalMemory /Value 2>/dev/null | grep -oP '\d+' | head -1)
+            disk_available=$(wmic logicaldisk where "DeviceID='C:'" get FreeSpace /Value 2>/dev/null | grep -oP '\d+' | head -1)
+            ip_local=$(ipconfig | grep -oP 'IPv4 Address[^\d]+\K[\d.]+' | head -1)
+            ip_public=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo "N/A")
+            connection_type="Desconocido"
             ;;
     esac
 
     echo "HOSTNAME:$hostname"
     echo "OS:$os_info"
     echo "UPTIME:$uptime_info"
+    echo "MEM_AVAILABLE:${mem_available:-0}"
+    echo "DISK_AVAILABLE:${disk_available:-0}"
+    echo "IP_LOCAL:${ip_local:-N/A}"
+    echo "IP_PUBLIC:${ip_public:-N/A}"
+    echo "CONNECTION:${connection_type:-Desconocido}"
     echo "DATE:$(date '+%Y-%m-%d %H:%M:%S')"
 }
 
@@ -91,19 +127,33 @@ Content-Type: text/plain; charset=UTF-8
 
 ${body}"
 
-        # Usar smtp:// con --STARTTLS-smtp para puerto 587
-        curl -s --url "smtp://${EMAIL_SMTP_SERVER}:${EMAIL_SMTP_PORT}" \
-            --ssl-reqd \
-            --mail-from "${EMAIL_USERNAME}" \
-            --mail-rcpt "${EMAIL_TO}" \
-            --user "${EMAIL_USERNAME}:${EMAIL_PASSWORD}" \
-            --upload-file - <<< "$email_content" 2>/dev/null
+        # Enviar a múltiples destinatarios
+        local IFS=','
+        local recipients=(${EMAIL_TO})
+        local all_sent=true
 
-        if [[ $? -eq 0 ]]; then
-            log "INFO" "✓ Correo enviado exitosamente"
+        for recipient in "${recipients[@]}"; do
+            recipient=$(echo "$recipient" | xargs) # trim whitespace
+            curl -s --url "smtp://${EMAIL_SMTP_SERVER}:${EMAIL_SMTP_PORT}" \
+                --ssl-reqd \
+                --mail-from "${EMAIL_USERNAME}" \
+                --mail-rcpt "$recipient" \
+                --user "${EMAIL_USERNAME}:${EMAIL_PASSWORD}" \
+                --upload-file - <<< "$email_content" 2>/dev/null
+
+            if [[ $? -eq 0 ]]; then
+                log "INFO" "✓ Correo enviado a $recipient"
+            else
+                log "WARN" "No se pudo enviar el correo a $recipient"
+                all_sent=false
+            fi
+        done
+
+        if [[ "$all_sent" == "true" ]]; then
+            log "INFO" "✓ Todos los correos enviados exitosamente"
             return 0
         else
-            log "WARN" "No se pudo enviar el correo con curl"
+            log "WARN" "Algunos correos no se pudieron enviar"
         fi
     fi
 
@@ -266,6 +316,11 @@ notify_reboot() {
     local hostname=$(echo "$sys_info" | grep "HOSTNAME:" | cut -d':' -f2)
     local os_info=$(echo "$sys_info" | grep "OS:" | cut -d':' -f2)
     local uptime_info=$(echo "$sys_info" | grep "UPTIME:" | cut -d':' -f2)
+    local mem_available=$(echo "$sys_info" | grep "MEM_AVAILABLE:" | cut -d':' -f2)
+    local disk_available=$(echo "$sys_info" | grep "DISK_AVAILABLE:" | cut -d':' -f2)
+    local ip_local=$(echo "$sys_info" | grep "IP_LOCAL:" | cut -d':' -f2)
+    local ip_public=$(echo "$sys_info" | grep "IP_PUBLIC:" | cut -d':' -f2)
+    local connection=$(echo "$sys_info" | grep "CONNECTION:" | cut -d':' -f2)
     local date_info=$(echo "$sys_info" | grep "DATE:" | cut -d':' -f2)
 
     # Mensaje para correo
@@ -276,6 +331,11 @@ notify_reboot() {
 🖥️ Hostname: $hostname
 💻 Sistema: $os_info
 ⏱️ Uptime: $uptime_info
+🧠 Memoria disponible: ${mem_available}MB
+💾 Espacio disponible: ${disk_available}MB
+🌐 IP Local: ${ip_local}
+🌍 IP Pública: ${ip_public}
+🔌 Conexión: ${connection}
 
 La optimización del sistema se ha ejecutado automáticamente.
 
@@ -289,6 +349,11 @@ Enviado por Aurora Optimizer"
 🖥️ Hostname: $hostname
 💻 Sistema: $os_info
 ⏱️ Uptime: $uptime_info
+🧠 Memoria disponible: ${mem_available}MB
+💾 Espacio disponible: ${disk_available}MB
+🌐 IP Local: ${ip_local}
+🌍 IP Pública: ${ip_public}
+🔌 Conexión: ${connection}
 
 ✅ Optimización completada"
 
