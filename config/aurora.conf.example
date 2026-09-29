@@ -108,6 +108,18 @@ PUSHOVER_APP_TOKEN="your-app-token"
 PUSHOVER_USER_KEY="your-user-key"
 
 # ============================================
+# NOTIFICACIONES POR MQTT
+# ============================================
+
+MQTT_ENABLED=false
+MQTT_BROKER="broker.hivemq.com"
+MQTT_PORT=1883
+MQTT_TOPIC="aurora/optimizer/notifications"
+MQTT_USERNAME=""
+MQTT_PASSWORD=""
+MQTT_TLS=false
+
+# ============================================
 # ESTADÍSTICAS
 # ============================================
 

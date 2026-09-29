@@ -305,6 +305,57 @@ send_pushover() {
 }
 
 # ============================================
+# NOTIFICACIÓN POR MQTT
+# ============================================
+
+send_mqtt() {
+    local message="$1"
+
+    if [[ "${MQTT_ENABLED:-false}" != "true" ]]; then
+        log "INFO" "Notificaciones por MQTT deshabilitadas"
+        return 0
+    fi
+
+    log "INFO" "Enviando notificación por MQTT..."
+
+    # Verificar dependencias
+    if ! command -v mosquitto_pub &> /dev/null; then
+        log "WARN" "mosquitto_pub no está disponible. Instalando..."
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get install -y mosquitto-clients 2>/dev/null || true
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y mosquitto-clients 2>/dev/null || true
+        fi
+    fi
+
+    if ! command -v mosquitto_pub &> /dev/null; then
+        log "WARN" "No se pudo instalar mosquitto_pub"
+        return 1
+    fi
+
+    # Enviar mensaje MQTT
+    local mqtt_cmd="mosquitto_pub -h ${MQTT_BROKER} -p ${MQTT_PORT} -t ${MQTT_TOPIC} -m '${message}'"
+
+    if [[ -n "${MQTT_USERNAME:-}" ]]; then
+        mqtt_cmd="${mqtt_cmd} -u ${MQTT_USERNAME} -P ${MQTT_PASSWORD}"
+    fi
+
+    if [[ "${MQTT_TLS:-false}" == "true" ]]; then
+        mqtt_cmd="${mqtt_cmd} --tls-version tlsv1.2"
+    fi
+
+    eval "$mqtt_cmd" 2>/dev/null
+
+    if [[ $? -eq 0 ]]; then
+        log "INFO" "✓ Mensaje MQTT enviado exitosamente"
+        return 0
+    else
+        log "WARN" "No se pudo enviar el mensaje MQTT"
+        return 1
+    fi
+}
+
+# ============================================
 # NOTIFICACIÓN DE REINICIO
 # ============================================
 notify_reboot() {
@@ -363,6 +414,7 @@ Enviado por Aurora Optimizer"
     send_slack "$telegram_message"
     send_discord "$telegram_message"
     send_pushover "$telegram_message"
+    send_mqtt "$telegram_message"
 
     log "INFO" "=========================================="
     log "INFO" "Notificaciones enviadas"
