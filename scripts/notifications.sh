@@ -318,33 +318,30 @@ send_mqtt() {
 
     log "INFO" "Enviando notificación por MQTT..."
 
-    # Verificar dependencias
-    if ! command -v mosquitto_pub &> /dev/null; then
-        log "WARN" "mosquitto_pub no está disponible. Instalando..."
-        if command -v apt-get &> /dev/null; then
-            sudo apt-get install -y mosquitto-clients 2>/dev/null || true
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y mosquitto-clients 2>/dev/null || true
-        fi
-    fi
+    # Usar Python con paho-mqtt
+    python3 -c "
+import paho.mqtt.client as mqtt
+import sys
 
-    if ! command -v mosquitto_pub &> /dev/null; then
-        log "WARN" "No se pudo instalar mosquitto_pub"
-        return 1
-    fi
+broker = '${MQTT_BROKER}'
+port = ${MQTT_PORT}
+username = '${MQTT_USERNAME}'
+password = '${MQTT_PASSWORD}'
+topic = '${MQTT_TOPIC}'
+message = '''${message}'''
 
-    # Enviar mensaje MQTT
-    local mqtt_cmd="mosquitto_pub -h ${MQTT_BROKER} -p ${MQTT_PORT} -t ${MQTT_TOPIC} -m '${message}'"
-
-    if [[ -n "${MQTT_USERNAME:-}" ]]; then
-        mqtt_cmd="${mqtt_cmd} -u ${MQTT_USERNAME} -P ${MQTT_PASSWORD}"
-    fi
-
-    if [[ "${MQTT_TLS:-false}" == "true" ]]; then
-        mqtt_cmd="${mqtt_cmd} --tls-version tlsv1.2"
-    fi
-
-    eval "$mqtt_cmd" 2>/dev/null
+try:
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    if username:
+        client.username_pw_set(username, password)
+    client.connect(broker, port, 60)
+    client.publish(topic, message)
+    client.disconnect()
+    print('✅ Mensaje MQTT enviado exitosamente')
+except Exception as e:
+    print(f'❌ Error: {e}')
+    sys.exit(1)
+" 2>/dev/null
 
     if [[ $? -eq 0 ]]; then
         log "INFO" "✓ Mensaje MQTT enviado exitosamente"
